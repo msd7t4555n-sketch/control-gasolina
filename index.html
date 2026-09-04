@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Gasolina">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
-<title>Control de Gasolina</title>
+<title>Control de Gasolina V4</title>
 <style>
 :root{--nav:#123b63;--blue:#236aa5;--green:#22834a;--orange:#d97706;--red:#b91c1c;--bg:#f3f6f8;--card:#fff;--text:#243447;--muted:#6b7785;--line:#e3eaf0}
 *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);padding-bottom:85px}
@@ -36,12 +36,12 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 .bottomnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 3px calc(8px + env(safe-area-inset-bottom));z-index:10}
 .navbtn{border:0;background:transparent;color:var(--muted);font-size:.69rem;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 8px}.navbtn.active{color:var(--blue);font-weight:750}.navbtn span{font-size:1.35rem}
 .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e8f1f8;color:var(--nav);font-size:.75rem;font-weight:700}
-.hidden{display:none}
+.hidden{display:none}.stationtable{overflow-x:auto}.stationtable table{min-width:620px}.score{font-weight:800}.score.good{color:var(--green)}.score.warn{color:var(--orange)}.score.bad{color:var(--red)}.mini{font-size:.78rem;color:var(--muted)}
 @media(min-width:650px){.kpis{grid-template-columns:repeat(5,1fr)}.resultgrid{grid-template-columns:repeat(3,1fr)}}
 </style>
 </head>
 <body>
-<header><h1>🚗 Control de Gasolina</h1><p id="subtitle">Tu consumo, rendimiento y ahorro en un solo lugar.</p></header>
+<header><h1>🚗 Control de Gasolina</h1><p id="subtitle">Tu consumo, rendimiento, verificación y control por gasolinera.</p></header>
 <main>
 <section id="home" class="view active">
   <div class="card">
@@ -78,6 +78,17 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
   <div class="card"><h2>Resumen actual</h2><div class="row"><div><h3>📅 Este mes</h3><div id="mesResumen"></div></div><div><h3>📆 Este año</h3><div id="anioResumen"></div></div></div></div>
 </section>
 
+<section id="gasolineras" class="view">
+  <div class="card"><h2>⛽ Control por gasolinera</h2>
+  <p class="muted">Aquí se acumulan las pruebas del verificador para comparar la consistencia de cada estación. El índice se basa en el porcentaje de pruebas dentro de ±3%.</p>
+  <div id="estacionesResumen"></div></div>
+  <div class="card"><h2>🔎 Detalle de pruebas</h2><div id="pruebasLista"></div></div>
+  <div class="card"><h2>📌 Cómo interpretar el índice</h2>
+    <table><tr><td><b>90–100%</b></td><td>Consistente</td></tr><tr><td><b>75–89%</b></td><td>Vigilancia</td></tr><tr><td><b>0–74%</b></td><td>Revisar</td></tr></table>
+    <p class="mini" style="margin-top:10px">Para que el índice sea significativo se recomienda realizar al menos 3 pruebas comparables por estación. No constituye una prueba legal de despacho incorrecto.</p>
+  </div>
+</section>
+
 <section id="historial" class="view">
  <div class="card"><div class="actions"><button class="secondary" id="exportCSV">⬇️ Excel (CSV)</button><button class="outline" id="exportJSON">💾 Respaldo</button><label class="outline" style="margin:0;display:inline-flex;align-items:center">📥 Restaurar<input id="importJSON" type="file" accept=".json" class="hidden"></label></div></div>
  <div class="card"><h2>Historial</h2><div id="historialLista"></div></div>
@@ -92,7 +103,9 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 <div><label>Kilómetros recorridos</label><input id="verKm" type="number" min="0" step="0.1" placeholder="Ej. 420"></div></div>
 <div class="row"><div><label>Litros cargados realmente</label><input id="litrosReal" type="number" min="0" step="0.01" placeholder="Ej. 36.20"></div>
 <div><label>Precio/L ($) opcional</label><input id="verPrecio" type="number" min="0" step="0.01" placeholder="Ej. 24.50"></div></div>
-<button class="primary" id="calcularVerificacion">🔎 Calcular y comparar</button></div>
+<label>Gasolinera</label><input id="verEstacion" list="estacionesList" placeholder="Ej. PEMEX / Nombre de estación">
+<button class="primary" id="calcularVerificacion">🔎 Calcular y comparar</button>
+<button class="secondary hidden" id="guardarVerificacion" style="width:100%;margin-top:10px">💾 Guardar esta prueba</button></div>
 <div class="card"><h2>Resultado</h2><div class="resultgrid">
 <div class="metric"><div class="small">Consumo esperado</div><div class="big" id="vEsperado">—</div></div>
 <div class="metric"><div class="small">Carga real</div><div class="big" id="vReal">—</div></div>
@@ -117,14 +130,15 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 <nav class="bottomnav">
 <button class="navbtn active" data-view="home"><span>⛽</span>Recarga</button>
 <button class="navbtn" data-view="dashboard"><span>📊</span>Panel</button>
-<button class="navbtn" data-view="historial"><span>📋</span>Historial</button><button class="navbtn" data-view="verificar"><span>🧪</span>Verificar</button>
+<button class="navbtn" data-view="historial"><span>📋</span>Historial</button><button class="navbtn" data-view="gasolineras"><span>⛽</span>Gasolineras</button><button class="navbtn" data-view="verificar"><span>🧪</span>Verificar</button>
 <button class="navbtn" data-view="ajustes"><span>⚙️</span>Ajustes</button>
 </nav>
 
 <script>
 const KEY='control_gasolina_v2';
-const defaultData={vehiculos:[{id:'v1',nombre:'Mi automóvil'}],activo:'v1',recargas:[],umbral:10};
+const defaultData={vehiculos:[{id:'v1',nombre:'Mi automóvil'}],activo:'v1',recargas:[],verificaciones:[],umbral:10};
 let db=JSON.parse(localStorage.getItem(KEY)||'null')||defaultData;
+if(!Array.isArray(db.verificaciones)) db.verificaciones=[];
 const $=id=>document.getElementById(id);
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:2}).format(n||0);
 const fmt=(n,d=2)=>Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -185,7 +199,7 @@ function renderHistory(){
  let arr=[...recs()].reverse();
  $('historialLista').innerHTML=arr.length?arr.map(r=>`<div class="record"><div class="record-head"><span>${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-MX')} <small>• ${r.estacion||'Sin estación'}</small></span><button class="danger" onclick="delRec(${r.id})">Eliminar</button></div><div class="muted">${fmt(r.distancia,0)} km • ${fmt(r.litros)} L • <b>${fmt(r.rendimiento)} km/L</b> • ${r.costo===null?'Sin costo':money(r.costo)}</div></div>`).join(''):'<p class="muted">Aún no hay recargas registradas.</p>';
 }
-function delRec(id){if(confirm('¿Eliminar esta recarga?')){db.recargas=db.recargas.filter(r=>r.id!==id);save();renderAll()}}
+function delRec(id){if(confirm('¿Eliminar esta recarga?')){db.recargas=db.recargas.filter(r=>r.id!==id);db.verificaciones=db.verificaciones.filter(v=>v.recargaId!==id);save();renderAll()}}
 function delVehicle(id){if(db.vehiculos.length<=1)return;if(confirm('Se eliminará el vehículo y sus recargas.')){db.recargas=db.recargas.filter(r=>r.vehiculo!==id);db.vehiculos=db.vehiculos.filter(v=>v.id!==id);if(db.activo===id)db.activo=db.vehiculos[0].id;save();renderAll()}}
 $('agregarVehiculo').onclick=()=>{let n=$('nuevoVehiculo').value.trim();if(!n)return;let id='v'+Date.now();db.vehiculos.push({id,nombre:n});db.activo=id;$('nuevoVehiculo').value='';save();renderAll();loadLastKm()}
 $('guardarAjustes').onclick=()=>{db.umbral=Math.max(1,Math.min(50,+$('umbral').value||10));$('umbral').value=db.umbral;save();preview();alert('Ajuste guardado')}
@@ -194,7 +208,7 @@ function exportFile(name,type,content){let a=document.createElement('a');a.href=
 $('exportJSON').onclick=()=>exportFile('Respaldo_Control_Gasolina.json','application/json',JSON.stringify(db,null,2));
 $('exportCSV').onclick=()=>{let heads=['Vehículo','Fecha','Km última recarga','Km actual','Distancia','Litros','Rendimiento km/L','Precio/L','Costo','Costo/km','Estación','Notas'];let name=id=>(db.vehiculos.find(v=>v.id===id)||{}).nombre||'';let esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;let rows=db.recargas.map(r=>[name(r.vehiculo),r.fecha,r.kmAnterior,r.kmActual,r.distancia,r.litros,r.rendimiento,r.precio??'',r.costo??'',r.costoKm??'',r.estacion,r.notas]);exportFile('Control_Gasolina.csv','text/csv;charset=utf-8','\ufeff'+[heads,...rows].map(x=>x.map(esc).join(',')).join('\n'))}
 $('importJSON').onchange=e=>{let f=e.target.files[0];if(!f)return;let rd=new FileReader();rd.onload=()=>{try{let x=JSON.parse(rd.result);if(!x.vehiculos||!x.recargas)throw 0;db=x;save();renderAll();alert('Respaldo restaurado correctamente')}catch{alert('El archivo no es un respaldo válido.')}};rd.readAsText(f)}
-document.querySelectorAll('.navbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.view).classList.add('active');if(b.dataset.view==='dashboard')renderDashboard()});
+document.querySelectorAll('.navbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.view).classList.add('active');if(b.dataset.view==='dashboard')renderDashboard();if(b.dataset.view==='gasolineras')renderStations()});
 
 function renderVerification(){
  $('verVehiculo').innerHTML=db.vehiculos.map(v=>`<option value="${v.id}" ${v.id===active()?'selected':''}>${v.nombre}</option>`).join('');
@@ -204,7 +218,10 @@ function renderVerification(){
 function calculateVerification(){
  const avg100=+$('avgL100').value, km=+$('verKm').value, real=+$('litrosReal').value;
  const price=$('verPrecio').value===''?null:+$('verPrecio').value;
+ const station=$('verEstacion').value.trim();
+ const recargaId=$('verRecarga').value?+$('verRecarga').value:null;
  if(!(avg100>0)||!(km>0)||!(real>0)){alert('Captura AVG L/100 km, kilómetros y litros reales.');return}
+ if(!station){alert('Indica la gasolinera para poder acumular la prueba.');return}
  const expected=km*avg100/100, diff=real-expected, pct=diff/expected*100;
  $('vEsperado').textContent=fmt(expected)+' L'; $('vReal').textContent=fmt(real)+' L';
  $('vDif').textContent=(diff>=0?'+':'')+fmt(diff)+' L'; $('vPct').textContent=(pct>=0?'+':'')+fmt(pct,1)+'%';
@@ -213,12 +230,49 @@ function calculateVerification(){
  if(Math.abs(pct)<=3){$('vEstado').textContent='✓ Cercano';a.className='alert ok';a.textContent='La diferencia está dentro de ±3%. Es compatible con una variación normal de medición/condiciones.'}
  else if(pct>3){$('vEstado').textContent='⬆️ Mayor';a.className='alert';a.textContent='La carga real supera la estimación. Revisa el nivel inicial/final del tanque y repite la prueba antes de sacar conclusiones.'}
  else {$('vEstado').textContent='⬇️ Menor';a.className='alert';a.textContent='La carga real es menor que la estimación. Verifica que el tanque estuviera en condiciones comparables y repite la prueba.'}
+ pendingVerification={recargaId,date:$('fecha').value||new Date().toISOString().slice(0,10),vehiculo:active(),vehiculoNombre:(db.vehiculos.find(v=>v.id===active())||{}).nombre||'',estacion:station,avg100,km,real,expected,diff,pct,price};
+ $('guardarVerificacion').classList.remove('hidden');
 }
 $('calcularVerificacion').onclick=calculateVerification;
 $('verVehiculo').onchange=e=>{db.activo=e.target.value;save();renderAll();loadLastKm()};
-$('usarRecarga').onclick=()=>{const id=+$('verRecarga').value,r=db.recargas.find(x=>x.id===id);if(!r)return;$('verKm').value=r.distancia;$('litrosReal').value=r.litros;if(r.precio!==null)$('verPrecio').value=r.precio;alert('Datos cargados. Introduce el AVG L/100 km y pulsa Calcular.')};
+$('usarRecarga').onclick=()=>{const id=+$('verRecarga').value,r=db.recargas.find(x=>x.id===id);if(!r)return;$('verKm').value=r.distancia;$('litrosReal').value=r.litros;if(r.precio!==null)$('verPrecio').value=r.precio;$('verEstacion').value=r.estacion||'';alert('Datos cargados. Introduce el AVG L/100 km y pulsa Calcular.')};
 
-function renderAll(){renderVehiculos();renderHistory();renderDashboard();renderVerification();$('umbral').value=db.umbral;preview()}
+let pendingVerification=null;
+$('guardarVerificacion').onclick=()=>{
+ if(!pendingVerification)return;
+ const recId=pendingVerification.recargaId;
+ if(recId && db.verificaciones.some(v=>v.recargaId===recId)){
+   if(!confirm('Esta recarga ya tiene una prueba guardada. ¿Guardar otra de todas formas?')) return;
+ }
+ db.verificaciones.push({...pendingVerification,id:Date.now()});
+ save();
+ $('guardarVerificacion').classList.add('hidden');
+ pendingVerification=null;
+ renderAll();
+ alert('✓ Prueba guardada. Ya forma parte del control por gasolinera.');
+};
+
+function stationStats(){
+ const map={};
+ db.verificaciones.forEach(v=>{
+   const name=(v.estacion||'Sin gasolinera').trim();
+   const key=name.toLowerCase();
+   if(!map[key]) map[key]={name,tests:0,within:0,sumAbs:0,sumPct:0,excess:0,shortage:0};
+   const s=map[key]; s.tests++; s.sumAbs+=Math.abs(v.pct); s.sumPct+=v.pct;
+   if(Math.abs(v.pct)<=3)s.within++;
+   if(v.diff>0)s.excess+=v.diff; else s.shortage+=Math.abs(v.diff);
+ });
+ return Object.values(map).sort((a,b)=>b.tests-a.tests||a.name.localeCompare(b.name));
+}
+function renderStations(){
+ const stats=stationStats();
+ $('estacionesResumen').innerHTML=stats.length?`<div class="stationtable"><table><tr><th style="text-align:left">Gasolinera</th><th>Pruebas</th><th>Prom. dif.</th><th>±3%</th><th>Índice</th><th>Estado</th></tr>${stats.map(s=>{const idx=Math.round(s.within/s.tests*100),avgp=s.sumPct/s.tests,cl=idx>=90?'good':idx>=75?'warn':'bad',st=s.tests<3?'Pocas pruebas':idx>=90?'Consistente':idx>=75?'Vigilancia':'Revisar';return `<tr><td><b>${s.name}</b><div class="mini">+${fmt(s.excess)} L / -${fmt(s.shortage)} L</div></td><td>${s.tests}</td><td>${avgp>=0?'+':''}${fmt(avgp,1)}%</td><td>${s.within}/${s.tests}</td><td class="score ${cl}">${idx}%</td><td>${st}</td></tr>`}).join('')}</table></div>`:'<p class="muted">Aún no hay pruebas guardadas. Usa el Verificador y guarda cada prueba para empezar a comparar estaciones.</p>';
+ const arr=[...db.verificaciones].sort((a,b)=>b.date.localeCompare(a.date));
+ $('pruebasLista').innerHTML=arr.length?arr.map(v=>`<div class="record"><div class="record-head"><span>${new Date(v.date+'T12:00:00').toLocaleDateString('es-MX')} • ${v.estacion||'Sin gasolinera'}</span><button class="danger" onclick="delVerification(${v.id})">Eliminar</button></div><div class="muted">${v.vehiculoNombre||'Vehículo'} • ${fmt(v.km,0)} km • esperado ${fmt(v.expected)} L • real ${fmt(v.real)} L • <b>${v.pct>=0?'+':''}${fmt(v.pct,1)}%</b></div></div>`).join(''):'<p class="muted">Sin pruebas guardadas.</p>';
+}
+function delVerification(id){if(confirm('¿Eliminar esta prueba?')){db.verificaciones=db.verificaciones.filter(v=>v.id!==id);save();renderAll()}}
+
+function renderAll(){renderVehiculos();renderHistory();renderDashboard();renderVerification();renderStations();$('umbral').value=db.umbral;preview()}
 $('fecha').value=new Date().toISOString().slice(0,10);
 renderAll();loadLastKm();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');

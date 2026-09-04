@@ -1,0 +1,13 @@
+CONTROL DE GASOLINA – VERSION 4
+
+Novedades:
+1. Control acumulado por gasolinera.
+2. Cada prueba del Verificador puede guardarse y queda asociada a estación y vehículo.
+3. Índice de consistencia por estación = porcentaje de pruebas dentro de ±3%.
+4. Muestra promedio de diferencia, pruebas dentro de tolerancia y litros de diferencia acumulados.
+5. Detalle y eliminación de pruebas guardadas.
+6. Las pruebas se incluyen en el respaldo JSON.
+
+Importante: el índice es una herramienta de control interno, no una prueba legal de despacho incorrecto. Se recomienda realizar varias pruebas comparables y conservar los tickets.
+
+Para actualizar GitHub Pages: sustituye los archivos del repositorio por los de este paquete, especialmente index.html, sw.js y los archivos del manifest/iconos. No borres el repositorio.
