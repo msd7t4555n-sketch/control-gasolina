@@ -83,6 +83,29 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
  <div class="card"><h2>Historial</h2><div id="historialLista"></div></div>
 </section>
 
+
+<section id="verificar" class="view">
+<div class="card"><h2>🧪 Verificador de carga de gasolina</h2>
+<p class="muted">Compara el consumo estimado por la computadora de viaje con los litros realmente cargados.</p>
+<label>Vehículo</label><select id="verVehiculo"></select>
+<div class="row"><div><label>AVG L/100 km</label><input id="avgL100" type="number" min="0.1" step="0.1" placeholder="Ej. 8.5"></div>
+<div><label>Kilómetros recorridos</label><input id="verKm" type="number" min="0" step="0.1" placeholder="Ej. 420"></div></div>
+<div class="row"><div><label>Litros cargados realmente</label><input id="litrosReal" type="number" min="0" step="0.01" placeholder="Ej. 36.20"></div>
+<div><label>Precio/L ($) opcional</label><input id="verPrecio" type="number" min="0" step="0.01" placeholder="Ej. 24.50"></div></div>
+<button class="primary" id="calcularVerificacion">🔎 Calcular y comparar</button></div>
+<div class="card"><h2>Resultado</h2><div class="resultgrid">
+<div class="metric"><div class="small">Consumo esperado</div><div class="big" id="vEsperado">—</div></div>
+<div class="metric"><div class="small">Carga real</div><div class="big" id="vReal">—</div></div>
+<div class="metric"><div class="small">Diferencia</div><div class="big" id="vDif">—</div></div>
+<div class="metric"><div class="small">Diferencia %</div><div class="big" id="vPct">—</div></div>
+<div class="metric"><div class="small">Costo diferencia</div><div class="big" id="vCostoDif">—</div></div>
+<div class="metric"><div class="small">Resultado</div><div class="big" id="vEstado">—</div></div>
+</div><div id="verAviso" class="alert hidden"></div>
+<p class="muted" style="margin-top:14px"><b>Importante:</b> esta comparación es una herramienta de control, no una prueba por sí sola de despacho incorrecto. El AVG del auto es una estimación y puede variar. Para investigar una estación, repite la prueba varias veces en condiciones similares y conserva los tickets.</p></div>
+<div class="card"><h2>📏 Cargar datos desde una recarga</h2><select id="verRecarga"></select>
+<button class="outline" id="usarRecarga" style="margin-top:10px">Usar datos de esta recarga</button></div>
+</section>
+
 <section id="ajustes" class="view">
  <div class="card"><h2>🚙 Vehículos</h2><div class="row"><input id="nuevoVehiculo" placeholder="Nombre del vehículo"><button class="secondary" id="agregarVehiculo">Agregar</button></div><div id="vehiculosLista" style="margin-top:12px"></div></div>
  <div class="card"><h2>⚙️ Alerta de rendimiento</h2><p class="muted">Te avisará cuando una recarga esté por debajo del porcentaje indicado respecto al promedio de tu vehículo.</p><label>Porcentaje de disminución para alertar</label><input id="umbral" type="number" min="1" max="50" value="10"><button class="secondary" id="guardarAjustes">Guardar ajuste</button></div>
@@ -94,7 +117,7 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 <nav class="bottomnav">
 <button class="navbtn active" data-view="home"><span>⛽</span>Recarga</button>
 <button class="navbtn" data-view="dashboard"><span>📊</span>Panel</button>
-<button class="navbtn" data-view="historial"><span>📋</span>Historial</button>
+<button class="navbtn" data-view="historial"><span>📋</span>Historial</button><button class="navbtn" data-view="verificar"><span>🧪</span>Verificar</button>
 <button class="navbtn" data-view="ajustes"><span>⚙️</span>Ajustes</button>
 </nav>
 
@@ -172,7 +195,30 @@ $('exportJSON').onclick=()=>exportFile('Respaldo_Control_Gasolina.json','applica
 $('exportCSV').onclick=()=>{let heads=['Vehículo','Fecha','Km última recarga','Km actual','Distancia','Litros','Rendimiento km/L','Precio/L','Costo','Costo/km','Estación','Notas'];let name=id=>(db.vehiculos.find(v=>v.id===id)||{}).nombre||'';let esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;let rows=db.recargas.map(r=>[name(r.vehiculo),r.fecha,r.kmAnterior,r.kmActual,r.distancia,r.litros,r.rendimiento,r.precio??'',r.costo??'',r.costoKm??'',r.estacion,r.notas]);exportFile('Control_Gasolina.csv','text/csv;charset=utf-8','\ufeff'+[heads,...rows].map(x=>x.map(esc).join(',')).join('\n'))}
 $('importJSON').onchange=e=>{let f=e.target.files[0];if(!f)return;let rd=new FileReader();rd.onload=()=>{try{let x=JSON.parse(rd.result);if(!x.vehiculos||!x.recargas)throw 0;db=x;save();renderAll();alert('Respaldo restaurado correctamente')}catch{alert('El archivo no es un respaldo válido.')}};rd.readAsText(f)}
 document.querySelectorAll('.navbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.view).classList.add('active');if(b.dataset.view==='dashboard')renderDashboard()});
-function renderAll(){renderVehiculos();renderHistory();renderDashboard();$('umbral').value=db.umbral;preview()}
+
+function renderVerification(){
+ $('verVehiculo').innerHTML=db.vehiculos.map(v=>`<option value="${v.id}" ${v.id===active()?'selected':''}>${v.nombre}</option>`).join('');
+ const arr=[...recs()].reverse();
+ $('verRecarga').innerHTML='<option value="">Selecciona una recarga...</option>'+arr.map(r=>`<option value="${r.id}">${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-MX')} • ${fmt(r.distancia,0)} km • ${fmt(r.litros)} L</option>`).join('');
+}
+function calculateVerification(){
+ const avg100=+$('avgL100').value, km=+$('verKm').value, real=+$('litrosReal').value;
+ const price=$('verPrecio').value===''?null:+$('verPrecio').value;
+ if(!(avg100>0)||!(km>0)||!(real>0)){alert('Captura AVG L/100 km, kilómetros y litros reales.');return}
+ const expected=km*avg100/100, diff=real-expected, pct=diff/expected*100;
+ $('vEsperado').textContent=fmt(expected)+' L'; $('vReal').textContent=fmt(real)+' L';
+ $('vDif').textContent=(diff>=0?'+':'')+fmt(diff)+' L'; $('vPct').textContent=(pct>=0?'+':'')+fmt(pct,1)+'%';
+ $('vCostoDif').textContent=price===null?'—':money(diff*price);
+ const a=$('verAviso');
+ if(Math.abs(pct)<=3){$('vEstado').textContent='✓ Cercano';a.className='alert ok';a.textContent='La diferencia está dentro de ±3%. Es compatible con una variación normal de medición/condiciones.'}
+ else if(pct>3){$('vEstado').textContent='⬆️ Mayor';a.className='alert';a.textContent='La carga real supera la estimación. Revisa el nivel inicial/final del tanque y repite la prueba antes de sacar conclusiones.'}
+ else {$('vEstado').textContent='⬇️ Menor';a.className='alert';a.textContent='La carga real es menor que la estimación. Verifica que el tanque estuviera en condiciones comparables y repite la prueba.'}
+}
+$('calcularVerificacion').onclick=calculateVerification;
+$('verVehiculo').onchange=e=>{db.activo=e.target.value;save();renderAll();loadLastKm()};
+$('usarRecarga').onclick=()=>{const id=+$('verRecarga').value,r=db.recargas.find(x=>x.id===id);if(!r)return;$('verKm').value=r.distancia;$('litrosReal').value=r.litros;if(r.precio!==null)$('verPrecio').value=r.precio;alert('Datos cargados. Introduce el AVG L/100 km y pulsa Calcular.')};
+
+function renderAll(){renderVehiculos();renderHistory();renderDashboard();renderVerification();$('umbral').value=db.umbral;preview()}
 $('fecha').value=new Date().toISOString().slice(0,10);
 renderAll();loadLastKm();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');
