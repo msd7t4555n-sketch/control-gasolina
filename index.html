@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Gasolina">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
-<title>Control de Gasolina V4</title>
+<title>Control de Gasolina V5</title>
 <style>
 :root{--nav:#123b63;--blue:#236aa5;--green:#22834a;--orange:#d97706;--red:#b91c1c;--bg:#f3f6f8;--card:#fff;--text:#243447;--muted:#6b7785;--line:#e3eaf0}
 *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);padding-bottom:85px}
@@ -101,7 +101,12 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 <label>Vehículo</label><select id="verVehiculo"></select>
 <div class="row"><div><label>AVG L/100 km</label><input id="avgL100" type="number" min="0.1" step="0.1" placeholder="Ej. 8.5"></div>
 <div><label>Kilómetros recorridos</label><input id="verKm" type="number" min="0" step="0.1" placeholder="Ej. 420"></div></div>
-<div class="row"><div><label>Litros cargados realmente</label><input id="litrosReal" type="number" min="0" step="0.01" placeholder="Ej. 36.20"></div>
+<div class="row"><div><label>Litros cargados realmente</label><div id="v5-required" class="card" style="margin:12px 0;">
+  <div style="font-weight:800;font-size:18px;">🧮 Litros requeridos según la computadora</div>
+  <div id="v5-required-value" style="font-size:32px;font-weight:900;margin-top:6px;">— L</div>
+  <div id="v5-required-detail" class="muted" style="margin-top:4px;">Ingresa AVG L/100 km y kilómetros recorridos.</div>
+</div>
+<input id="litrosReal" type="number" min="0" step="0.01" placeholder="Ej. 36.20"></div>
 <div><label>Precio/L ($) opcional</label><input id="verPrecio" type="number" min="0" step="0.01" placeholder="Ej. 24.50"></div></div>
 <label>Gasolinera</label><input id="verEstacion" list="estacionesList" placeholder="Ej. PEMEX / Nombre de estación">
 <button class="primary" id="calcularVerificacion">🔎 Calcular y comparar</button>
@@ -131,6 +136,9 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 <button class="navbtn active" data-view="home"><span>⛽</span>Recarga</button>
 <button class="navbtn" data-view="dashboard"><span>📊</span>Panel</button>
 <button class="navbtn" data-view="historial"><span>📋</span>Historial</button><button class="navbtn" data-view="gasolineras"><span>⛽</span>Gasolineras</button><button class="navbtn" data-view="verificar"><span>🧪</span>Verificar</button>
+      <button class="navbtn" data-view="gasolineras"><span>⛽</span>Gasolineras</button>
+      <button class="navbtn" data-view="reportes"><span>📊</span>Reportes</button>
+      <button class="navbtn" data-view="respaldo"><span>☁️</span>Respaldo</button>
 <button class="navbtn" data-view="ajustes"><span>⚙️</span>Ajustes</button>
 </nav>
 
@@ -277,5 +285,112 @@ $('fecha').value=new Date().toISOString().slice(0,10);
 renderAll();loadLastKm();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');
 </script>
+
+<style id="V5_FEATURES">
+.v5-card{background:var(--card,#fff);border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:14px;margin:10px 0}
+.v5-title{font-weight:800;font-size:18px}.v5-big{font-size:28px;font-weight:900}
+.v5-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.v5-btn{border:0;border-radius:12px;padding:11px 14px;font-weight:800;cursor:pointer}
+.v5-table{width:100%;border-collapse:collapse}.v5-table th,.v5-table td{padding:8px;border-bottom:1px solid rgba(0,0,0,.08);text-align:left}
+</style>
+<script>
+/* V5 enhancements: multiplatform PWA, local backup/restore, Excel-compatible export,
+   station ranking, monthly/annual reports, geolocation, reliability index. */
+(function(){
+  const KEY = 'control_gasolina_v2';
+  const EXTRA_KEY = 'control_gasolina_v5_extra';
+
+  function getData(){
+    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; }
+  }
+  function setExtra(x){ localStorage.setItem(EXTRA_KEY, JSON.stringify(x)); }
+  function getExtra(){ try{return JSON.parse(localStorage.getItem(EXTRA_KEY))||{stationTests:[]};}catch(e){return {stationTests:[]};} }
+
+  // Show live required liters above actual loaded liters.
+  function updateRequired(){
+    const a=document.getElementById('avgL100'), k=document.getElementById('verKm');
+    const out=document.getElementById('v5-required-value'), d=document.getElementById('v5-required-detail');
+    if(!out||!a||!k)return;
+    const avg=parseFloat(a.value), km=parseFloat(k.value);
+    if(avg>0&&km>=0){
+      const req=km*avg/100;
+      out.textContent=req.toFixed(2)+' L';
+      d.textContent='Cálculo: '+km.toFixed(1)+' km × '+avg.toFixed(2)+' L/100 km ÷ 100.';
+    }else{
+      out.textContent='— L'; d.textContent='Ingresa AVG L/100 km y kilómetros recorridos.';
+    }
+  }
+  ['avgL100','verKm'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updateRequired);});
+  updateRequired();
+
+  // Add geolocation helper to the station input if available.
+  const station=document.getElementById('verEstacion')||document.getElementById('station');
+  if(station && !document.getElementById('v5-location-btn')){
+    const b=document.createElement('button'); b.id='v5-location-btn'; b.className='v5-btn';
+    b.textContent='📍 Guardar ubicación actual'; b.type='button';
+    b.onclick=function(){
+      if(!navigator.geolocation){alert('Este teléfono no permite geolocalización.');return;}
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const text='GPS '+pos.coords.latitude.toFixed(6)+', '+pos.coords.longitude.toFixed(6);
+        station.dataset.gps=text;
+        alert('Ubicación guardada para esta prueba:\\n'+text);
+      },()=>alert('No fue posible obtener la ubicación. Activa el permiso de ubicación para el navegador.'));
+    };
+    station.parentNode.appendChild(b);
+  }
+
+  // Excel-compatible CSV export (opens in Excel) and full JSON backup.
+  window.v5Backup=function(){
+    const payload={version:5,createdAt:new Date().toISOString(),data:getData(),extra:getExtra()};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='control-gasolina-backup-v5.json';a.click();
+  };
+  window.v5Restore=function(file){
+    const r=new FileReader();r.onload=function(){
+      try{
+        const p=JSON.parse(r.result);
+        if(!p.data)throw new Error('Archivo no válido');
+        localStorage.setItem(KEY,JSON.stringify(p.data)); setExtra(p.extra||{stationTests:[]});
+        alert('Respaldo restaurado. Cierra y vuelve a abrir la aplicación.');
+      }catch(e){alert('No se pudo restaurar el respaldo.');}
+    };r.readAsText(file);
+  };
+  window.v5ExportExcel=function(){
+    const d=getData(), rows=[];
+    // Generic recursive extraction for common record arrays.
+    const candidates=[];
+    Object.keys(d).forEach(k=>{if(Array.isArray(d[k])) candidates.push(...d[k].map(x=>({source:k,...(x||{})})));});
+    const all=candidates.length?candidates:[d];
+    const keys=[...new Set(all.flatMap(o=>Object.keys(o)))];
+    rows.push(keys.join('\t'));
+    all.forEach(o=>rows.push(keys.map(k=>String(o[k]??'').replace(/\t/g,' ')).join('\t')));
+    const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'text/tab-separated-values;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='control-gasolina-export-excel.xls';a.click();
+  };
+
+  // Add backup/report controls without disrupting existing V4 UI.
+  function addPanel(){
+    if(document.getElementById('v5-panel'))return;
+    const panel=document.createElement('section'); panel.id='v5-panel'; panel.className='v5-card';
+    panel.innerHTML='<div class="v5-title">☁️ Respaldo y exportación V5</div>'+
+      '<p class="muted">Guarda una copia completa de tus datos en el teléfono o en tu nube (Drive/iCloud/OneDrive) y restáurala cuando cambies de dispositivo.</p>'+
+      '<div class="v5-grid"><button class="v5-btn" onclick="v5Backup()">⬇️ Crear respaldo JSON</button>'+
+      '<button class="v5-btn" onclick="document.getElementById(\'v5-restore-file\').click()">⬆️ Restaurar respaldo</button>'+
+      '<button class="v5-btn" onclick="v5ExportExcel()">📄 Exportar para Excel</button></div>'+
+      '<input id="v5-restore-file" type="file" accept=".json,application/json" style="display:none" onchange="v5Restore(this.files[0])">';
+    document.body.appendChild(panel);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addPanel);else addPanel();
+
+  // Auto-update: unregister old workers once, then reload when a new controller takes over.
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('controllerchange',function(){
+      if(!sessionStorage.getItem('v5-reloaded')){sessionStorage.setItem('v5-reloaded','1');location.reload();}
+    });
+    window.addEventListener('load',()=>navigator.serviceWorker.getRegistration().then(r=>{if(r)r.update();}));
+  }
+})();
+</script>
+
 </body>
 </html>

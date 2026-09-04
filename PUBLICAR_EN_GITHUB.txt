@@ -1,6 +1,7 @@
-ACTUALIZAR A VERSIÓN 3
-
-En tu repositorio control-gasolina, reemplaza el index.html y sw.js por los de esta carpeta. Conserva/sube también manifest.webmanifest, .nojekyll y la carpeta icons.
-
-Después de Commit changes, espera unos minutos a que GitHub Pages publique el cambio.
-Si la app estaba instalada en iPhone, ciérrala y vuelve a abrirla. Si no aparece la nueva opción VERIFICAR, abre primero la URL en Safari y actualiza.
+1. Descomprime este paquete.
+2. En tu repositorio control-gasolina usa Add file > Upload files.
+3. Reemplaza index.html, manifest.webmanifest, sw.js, .nojekyll y README.md.
+4. Reemplaza la carpeta icons completa.
+5. Commit changes.
+6. GitHub Pages conservará la misma URL.
+7. En iPhone/Android abre Safari/Chrome y vuelve a cargar; el service worker V5 fuerza la actualización.
