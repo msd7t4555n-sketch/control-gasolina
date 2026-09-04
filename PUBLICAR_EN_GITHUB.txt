@@ -1,0 +1,22 @@
+LISTA RÁPIDA PARA PUBLICAR EN GITHUB PAGES
+
+1. Descarga este archivo ZIP.
+2. Descomprímelo.
+3. Crea un repositorio nuevo en GitHub llamado:
+   control-gasolina
+4. Sube el contenido de la carpeta ControlGasolina_GitHubPages.
+5. Ve a Settings > Pages.
+6. En Source selecciona:
+   Deploy from a branch
+7. Branch:
+   main
+8. Folder:
+   /(root)
+9. Guarda los cambios.
+10. Espera a que GitHub publique la página.
+11. Abre la dirección generada en Safari en tu iPhone.
+12. Compartir > Añadir a pantalla de inicio.
+
+NOTA:
+También se incluye un archivo de GitHub Actions (.github/workflows/deploy.yml).
+No es necesario usarlo si eliges "Deploy from a branch".
