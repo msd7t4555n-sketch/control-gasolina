@@ -39,7 +39,13 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 .hidden{display:none}.stationtable{overflow-x:auto}.stationtable table{min-width:620px}.score{font-weight:800}.score.good{color:var(--green)}.score.warn{color:var(--orange)}.score.bad{color:var(--red)}.mini{font-size:.78rem;color:var(--muted)}
 @media(min-width:650px){.kpis{grid-template-columns:repeat(5,1fr)}.resultgrid{grid-template-columns:repeat(3,1fr)}}
 </style>
-</head>
+<style id="v5-nav-fix">
+.bottomnav{overflow-x:auto;justify-content:flex-start;gap:4px}
+.bottomnav .navbtn{flex:0 0 auto;min-width:78px}
+</style><style id="v5-report-fix">
+#reportes .metric{min-height:72px}
+#reportes .v5-table{min-width:700px}
+</style></head>
 <body>
 <header><h1>🚗 Control de Gasolina</h1><p id="subtitle">Tu consumo, rendimiento, verificación y control por gasolinera.</p></header>
 <main>
@@ -101,14 +107,16 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 <label>Vehículo</label><select id="verVehiculo"></select>
 <div class="row"><div><label>AVG L/100 km</label><input id="avgL100" type="number" min="0.1" step="0.1" placeholder="Ej. 8.5"></div>
 <div><label>Kilómetros recorridos</label><input id="verKm" type="number" min="0" step="0.1" placeholder="Ej. 420"></div></div>
-<div class="row"><div><label>Litros cargados realmente</label><div id="v5-required" class="card" style="margin:12px 0;">
+<div id="v5-required" class="card" style="margin:16px 0 14px;">
   <div style="font-weight:800;font-size:18px;">🧮 Litros requeridos según la computadora</div>
   <div id="v5-required-value" style="font-size:32px;font-weight:900;margin-top:6px;">— L</div>
   <div id="v5-required-detail" class="muted" style="margin-top:4px;">Ingresa AVG L/100 km y kilómetros recorridos.</div>
 </div>
-<input id="litrosReal" type="number" min="0" step="0.01" placeholder="Ej. 36.20"></div>
+<div class="row"><div><label>Litros cargados realmente</label><input id="litrosReal" type="number" min="0" step="0.01" placeholder="Ej. 36.20"></div>
 <div><label>Precio/L ($) opcional</label><input id="verPrecio" type="number" min="0" step="0.01" placeholder="Ej. 24.50"></div></div>
 <label>Gasolinera</label><input id="verEstacion" list="estacionesList" placeholder="Ej. PEMEX / Nombre de estación">
+<button class="outline" type="button" id="v5GPSBtn" style="margin-top:8px">📍 Guardar ubicación actual</button>
+<div id="v5GPSStatus" class="muted" style="margin-top:5px">Ubicación opcional.</div>
 <button class="primary" id="calcularVerificacion">🔎 Calcular y comparar</button>
 <button class="secondary hidden" id="guardarVerificacion" style="width:100%;margin-top:10px">💾 Guardar esta prueba</button></div>
 <div class="card"><h2>Resultado</h2><div class="resultgrid">
@@ -124,6 +132,60 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 <button class="outline" id="usarRecarga" style="margin-top:10px">Usar datos de esta recarga</button></div>
 </section>
 
+
+<section id="reportes" class="view">
+  <div class="card">
+    <h2>📊 Reportes mensuales y anuales</h2>
+    <p class="muted">Genera un resumen de las recargas del vehículo activo.</p>
+    <div class="row">
+      <div><label>Periodo</label>
+        <select id="v5Periodo">
+          <option value="month">Mensual</option>
+          <option value="year">Anual</option>
+        </select>
+      </div>
+      <div><label>Año</label><input id="v5Anio" type="number" min="2000" max="2100"></div>
+      <div><label>Mes</label>
+        <select id="v5Mes">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </div>
+    </div>
+    <button class="primary" type="button" id="v5GenerarReporte">📊 Generar reporte</button>
+    <div id="v5ReporteMensaje" class="muted" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <div id="v5ReporteKpis" class="resultgrid"></div>
+    <div id="v5ReporteTabla" style="overflow-x:auto;margin-top:14px"></div>
+  </div>
+</section>
+
+
+<section id="respaldo" class="view">
+  <div class="card">
+    <h2>☁️ Respaldo y migración</h2>
+    <p class="muted">La aplicación guarda los datos localmente. Crea un respaldo JSON y guárdalo en Google Drive, OneDrive, iCloud o tu computadora. Así puedes recuperar tus registros al cambiar de teléfono.</p>
+    <div class="row">
+      <button class="primary" id="v5CrearRespaldo">⬇️ Crear respaldo</button>
+      <button class="secondary" id="v5RestaurarBtn">⬆️ Restaurar respaldo</button>
+    </div>
+    <input id="v5RestaurarFile" type="file" accept=".json,application/json" style="display:none">
+  </div>
+  <div class="card">
+    <h2>📄 Exportación para Excel</h2>
+    <p class="muted">Genera un archivo compatible con Excel con las recargas registradas.</p>
+    <button class="primary" id="v5Excel">📄 Exportar a Excel</button>
+  </div>
+  <div class="card">
+    <h2>🔄 Actualización automática</h2>
+    <p class="muted">La V5 utiliza un service worker con actualización de caché. Al publicar una nueva versión, la aplicación comprobará la actualización al abrirse.</p>
+    <button class="outline" id="v5Actualizar">🔄 Buscar actualización ahora</button>
+  </div>
+</section>
+
 <section id="ajustes" class="view">
  <div class="card"><h2>🚙 Vehículos</h2><div class="row"><input id="nuevoVehiculo" placeholder="Nombre del vehículo"><button class="secondary" id="agregarVehiculo">Agregar</button></div><div id="vehiculosLista" style="margin-top:12px"></div></div>
  <div class="card"><h2>⚙️ Alerta de rendimiento</h2><p class="muted">Te avisará cuando una recarga esté por debajo del porcentaje indicado respecto al promedio de tu vehículo.</p><label>Porcentaje de disminución para alertar</label><input id="umbral" type="number" min="1" max="50" value="10"><button class="secondary" id="guardarAjustes">Guardar ajuste</button></div>
@@ -135,10 +197,11 @@ canvas{width:100%;height:210px;border-radius:12px;background:#fff}
 <nav class="bottomnav">
 <button class="navbtn active" data-view="home"><span>⛽</span>Recarga</button>
 <button class="navbtn" data-view="dashboard"><span>📊</span>Panel</button>
-<button class="navbtn" data-view="historial"><span>📋</span>Historial</button><button class="navbtn" data-view="gasolineras"><span>⛽</span>Gasolineras</button><button class="navbtn" data-view="verificar"><span>🧪</span>Verificar</button>
-      <button class="navbtn" data-view="gasolineras"><span>⛽</span>Gasolineras</button>
-      <button class="navbtn" data-view="reportes"><span>📊</span>Reportes</button>
-      <button class="navbtn" data-view="respaldo"><span>☁️</span>Respaldo</button>
+<button class="navbtn" data-view="historial"><span>📋</span>Historial</button>
+<button class="navbtn" data-view="verificar"><span>🧪</span>Verificar</button>
+<button class="navbtn" data-view="gasolineras"><span>⛽</span>Gasolineras</button>
+<button class="navbtn" data-view="reportes"><span>📊</span>Reportes</button>
+<button class="navbtn" data-view="respaldo"><span>☁️</span>Respaldo</button>
 <button class="navbtn" data-view="ajustes"><span>⚙️</span>Ajustes</button>
 </nav>
 
@@ -223,6 +286,7 @@ function renderVerification(){
  const arr=[...recs()].reverse();
  $('verRecarga').innerHTML='<option value="">Selecciona una recarga...</option>'+arr.map(r=>`<option value="${r.id}">${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-MX')} • ${fmt(r.distancia,0)} km • ${fmt(r.litros)} L</option>`).join('');
 }
+let verificationGPS=null;
 function calculateVerification(){
  const avg100=+$('avgL100').value, km=+$('verKm').value, real=+$('litrosReal').value;
  const price=$('verPrecio').value===''?null:+$('verPrecio').value;
@@ -238,12 +302,12 @@ function calculateVerification(){
  if(Math.abs(pct)<=3){$('vEstado').textContent='✓ Cercano';a.className='alert ok';a.textContent='La diferencia está dentro de ±3%. Es compatible con una variación normal de medición/condiciones.'}
  else if(pct>3){$('vEstado').textContent='⬆️ Mayor';a.className='alert';a.textContent='La carga real supera la estimación. Revisa el nivel inicial/final del tanque y repite la prueba antes de sacar conclusiones.'}
  else {$('vEstado').textContent='⬇️ Menor';a.className='alert';a.textContent='La carga real es menor que la estimación. Verifica que el tanque estuviera en condiciones comparables y repite la prueba.'}
- pendingVerification={recargaId,date:$('fecha').value||new Date().toISOString().slice(0,10),vehiculo:active(),vehiculoNombre:(db.vehiculos.find(v=>v.id===active())||{}).nombre||'',estacion:station,avg100,km,real,expected,diff,pct,price};
+ pendingVerification={recargaId,date:$('fecha').value||new Date().toISOString().slice(0,10),vehiculo:active(),vehiculoNombre:(db.vehiculos.find(v=>v.id===active())||{}).nombre||'',estacion:station,avg100,km,real,expected,diff,pct,price,gps:verificationGPS};
  $('guardarVerificacion').classList.remove('hidden');
 }
 $('calcularVerificacion').onclick=calculateVerification;
 $('verVehiculo').onchange=e=>{db.activo=e.target.value;save();renderAll();loadLastKm()};
-$('usarRecarga').onclick=()=>{const id=+$('verRecarga').value,r=db.recargas.find(x=>x.id===id);if(!r)return;$('verKm').value=r.distancia;$('litrosReal').value=r.litros;if(r.precio!==null)$('verPrecio').value=r.precio;$('verEstacion').value=r.estacion||'';alert('Datos cargados. Introduce el AVG L/100 km y pulsa Calcular.')};
+$('usarRecarga').onclick=()=>{verificationGPS=null; const id=+$('verRecarga').value,r=db.recargas.find(x=>x.id===id);if(!r)return;$('verKm').value=r.distancia;$('litrosReal').value=r.litros;if(r.precio!==null)$('verPrecio').value=r.precio;$('verEstacion').value=r.estacion||'';alert('Datos cargados. Introduce el AVG L/100 km y pulsa Calcular.')};
 
 let pendingVerification=null;
 $('guardarVerificacion').onclick=()=>{
@@ -276,7 +340,7 @@ function renderStations(){
  const stats=stationStats();
  $('estacionesResumen').innerHTML=stats.length?`<div class="stationtable"><table><tr><th style="text-align:left">Gasolinera</th><th>Pruebas</th><th>Prom. dif.</th><th>±3%</th><th>Índice</th><th>Estado</th></tr>${stats.map(s=>{const idx=Math.round(s.within/s.tests*100),avgp=s.sumPct/s.tests,cl=idx>=90?'good':idx>=75?'warn':'bad',st=s.tests<3?'Pocas pruebas':idx>=90?'Consistente':idx>=75?'Vigilancia':'Revisar';return `<tr><td><b>${s.name}</b><div class="mini">+${fmt(s.excess)} L / -${fmt(s.shortage)} L</div></td><td>${s.tests}</td><td>${avgp>=0?'+':''}${fmt(avgp,1)}%</td><td>${s.within}/${s.tests}</td><td class="score ${cl}">${idx}%</td><td>${st}</td></tr>`}).join('')}</table></div>`:'<p class="muted">Aún no hay pruebas guardadas. Usa el Verificador y guarda cada prueba para empezar a comparar estaciones.</p>';
  const arr=[...db.verificaciones].sort((a,b)=>b.date.localeCompare(a.date));
- $('pruebasLista').innerHTML=arr.length?arr.map(v=>`<div class="record"><div class="record-head"><span>${new Date(v.date+'T12:00:00').toLocaleDateString('es-MX')} • ${v.estacion||'Sin gasolinera'}</span><button class="danger" onclick="delVerification(${v.id})">Eliminar</button></div><div class="muted">${v.vehiculoNombre||'Vehículo'} • ${fmt(v.km,0)} km • esperado ${fmt(v.expected)} L • real ${fmt(v.real)} L • <b>${v.pct>=0?'+':''}${fmt(v.pct,1)}%</b></div></div>`).join(''):'<p class="muted">Sin pruebas guardadas.</p>';
+ $('pruebasLista').innerHTML=arr.length?arr.map(v=>`<div class="record"><div class="record-head"><span>${new Date(v.date+'T12:00:00').toLocaleDateString('es-MX')} • ${v.estacion||'Sin gasolinera'}</span><button class="danger" onclick="delVerification(${v.id})">Eliminar</button></div><div class="muted">${v.vehiculoNombre||'Vehículo'} • ${fmt(v.km,0)} km • esperado ${fmt(v.expected)} L • real ${fmt(v.real)} L • <b>${v.pct>=0?'+':''}${fmt(v.pct,1)}%</b>${v.gps?` • <a href="https://www.google.com/maps?q=${v.gps.lat},${v.gps.lon}" target="_blank" rel="noopener">📍 Ver ubicación</a>`:''}</div></div>`).join(''):'<p class="muted">Sin pruebas guardadas.</p>';
 }
 function delVerification(id){if(confirm('¿Eliminar esta prueba?')){db.verificaciones=db.verificaciones.filter(v=>v.id!==id);save();renderAll()}}
 
@@ -294,101 +358,127 @@ if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');
 .v5-table{width:100%;border-collapse:collapse}.v5-table th,.v5-table td{padding:8px;border-bottom:1px solid rgba(0,0,0,.08);text-align:left}
 </style>
 <script>
-/* V5 enhancements: multiplatform PWA, local backup/restore, Excel-compatible export,
-   station ranking, monthly/annual reports, geolocation, reliability index. */
+/* V5 integrated enhancements */
 (function(){
-  const KEY = 'control_gasolina_v2';
-  const EXTRA_KEY = 'control_gasolina_v5_extra';
+  const KEY='control_gasolina_v2';
+  const EXTRA_KEY='control_gasolina_v5_extra';
+  let gps=null;
 
-  function getData(){
-    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; }
-  }
-  function setExtra(x){ localStorage.setItem(EXTRA_KEY, JSON.stringify(x)); }
-  function getExtra(){ try{return JSON.parse(localStorage.getItem(EXTRA_KEY))||{stationTests:[]};}catch(e){return {stationTests:[]};} }
+  function readDB(){ try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};} }
+  function writeDB(x){localStorage.setItem(KEY,JSON.stringify(x));}
+  function extra(){try{return JSON.parse(localStorage.getItem(EXTRA_KEY))||{};}catch(e){return {};}}
+  function fmtN(n,d=2){return Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:d,maximumFractionDigits:d});}
 
-  // Show live required liters above actual loaded liters.
+  // Live required liters: explicitly above actual liters loaded.
   function updateRequired(){
-    const a=document.getElementById('avgL100'), k=document.getElementById('verKm');
-    const out=document.getElementById('v5-required-value'), d=document.getElementById('v5-required-detail');
-    if(!out||!a||!k)return;
-    const avg=parseFloat(a.value), km=parseFloat(k.value);
-    if(avg>0&&km>=0){
-      const req=km*avg/100;
-      out.textContent=req.toFixed(2)+' L';
-      d.textContent='Cálculo: '+km.toFixed(1)+' km × '+avg.toFixed(2)+' L/100 km ÷ 100.';
-    }else{
-      out.textContent='— L'; d.textContent='Ingresa AVG L/100 km y kilómetros recorridos.';
-    }
+    const a=document.getElementById('avgL100'),k=document.getElementById('verKm'),o=document.getElementById('v5-required-value'),d=document.getElementById('v5-required-detail');
+    if(!a||!k||!o)return;
+    const avg=+a.value,km=+k.value;
+    if(avg>0&&km>0){const req=km*avg/100;o.textContent=fmtN(req)+' L';d.textContent='Cálculo: '+fmtN(km,1)+' km × '+fmtN(avg,1)+' L/100 km ÷ 100.';}
+    else{o.textContent='— L';d.textContent='Ingresa AVG L/100 km y kilómetros recorridos.';}
   }
-  ['avgL100','verKm'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updateRequired);});
+  ['avgL100','verKm'].forEach(id=>document.getElementById(id)?.addEventListener('input',updateRequired));
   updateRequired();
 
-  // Add geolocation helper to the station input if available.
-  const station=document.getElementById('verEstacion')||document.getElementById('station');
-  if(station && !document.getElementById('v5-location-btn')){
-    const b=document.createElement('button'); b.id='v5-location-btn'; b.className='v5-btn';
-    b.textContent='📍 Guardar ubicación actual'; b.type='button';
-    b.onclick=function(){
-      if(!navigator.geolocation){alert('Este teléfono no permite geolocalización.');return;}
-      navigator.geolocation.getCurrentPosition(pos=>{
-        const text='GPS '+pos.coords.latitude.toFixed(6)+', '+pos.coords.longitude.toFixed(6);
-        station.dataset.gps=text;
-        alert('Ubicación guardada para esta prueba:\\n'+text);
-      },()=>alert('No fue posible obtener la ubicación. Activa el permiso de ubicación para el navegador.'));
-    };
-    station.parentNode.appendChild(b);
-  }
+  // GPS capture.
+  document.getElementById('v5GPSBtn')?.addEventListener('click',()=>{
+    const status=document.getElementById('v5GPSStatus');
+    if(!navigator.geolocation){status.textContent='Este dispositivo no permite geolocalización.';return;}
+    status.textContent='Obteniendo ubicación…';
+    navigator.geolocation.getCurrentPosition(p=>{
+      gps={lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy,timestamp:new Date().toISOString()};
+      verificationGPS=gps;
+      status.textContent='✓ Ubicación guardada: '+gps.lat.toFixed(6)+', '+gps.lon.toFixed(6);
+    },()=>status.textContent='No se pudo obtener la ubicación. Revisa los permisos del navegador.',{enableHighAccuracy:true,timeout:10000});
+  });
 
-  // Excel-compatible CSV export (opens in Excel) and full JSON backup.
-  window.v5Backup=function(){
-    const payload={version:5,createdAt:new Date().toISOString(),data:getData(),extra:getExtra()};
-    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='control-gasolina-backup-v5.json';a.click();
-  };
-  window.v5Restore=function(file){
-    const r=new FileReader();r.onload=function(){
+
+  // Backup/restore. Includes DB + V5 extras.
+  document.getElementById('v5CrearRespaldo')?.addEventListener('click',()=>{
+    const payload={app:'Control de Gasolina',version:5,createdAt:new Date().toISOString(),db:readDB(),extra:extra()};
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download='Control_Gasolina_Respaldo_V5.json';a.click();
+  });
+  document.getElementById('v5RestaurarBtn')?.addEventListener('click',()=>document.getElementById('v5RestaurarFile').click());
+  document.getElementById('v5RestaurarFile')?.addEventListener('change',e=>{
+    const f=e.target.files[0];if(!f)return;
+    const rd=new FileReader();rd.onload=()=>{
       try{
-        const p=JSON.parse(r.result);
-        if(!p.data)throw new Error('Archivo no válido');
-        localStorage.setItem(KEY,JSON.stringify(p.data)); setExtra(p.extra||{stationTests:[]});
-        alert('Respaldo restaurado. Cierra y vuelve a abrir la aplicación.');
-      }catch(e){alert('No se pudo restaurar el respaldo.');}
-    };r.readAsText(file);
-  };
-  window.v5ExportExcel=function(){
-    const d=getData(), rows=[];
-    // Generic recursive extraction for common record arrays.
-    const candidates=[];
-    Object.keys(d).forEach(k=>{if(Array.isArray(d[k])) candidates.push(...d[k].map(x=>({source:k,...(x||{})})));});
-    const all=candidates.length?candidates:[d];
-    const keys=[...new Set(all.flatMap(o=>Object.keys(o)))];
-    rows.push(keys.join('\t'));
-    all.forEach(o=>rows.push(keys.map(k=>String(o[k]??'').replace(/\t/g,' ')).join('\t')));
-    const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'text/tab-separated-values;charset=utf-8'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='control-gasolina-export-excel.xls';a.click();
-  };
+        const p=JSON.parse(rd.result), d=p.db||p.data;
+        if(!d||!Array.isArray(d.vehiculos)||!Array.isArray(d.recargas))throw new Error();
+        writeDB(d); if(p.extra)localStorage.setItem(EXTRA_KEY,JSON.stringify(p.extra));
+        alert('✓ Respaldo restaurado correctamente. La aplicación se actualizará.');
+        location.reload();
+      }catch(err){alert('El archivo no es un respaldo válido de Control de Gasolina.');}
+    };rd.readAsText(f);
+  });
 
-  // Add backup/report controls without disrupting existing V4 UI.
-  function addPanel(){
-    if(document.getElementById('v5-panel'))return;
-    const panel=document.createElement('section'); panel.id='v5-panel'; panel.className='v5-card';
-    panel.innerHTML='<div class="v5-title">☁️ Respaldo y exportación V5</div>'+
-      '<p class="muted">Guarda una copia completa de tus datos en el teléfono o en tu nube (Drive/iCloud/OneDrive) y restáurala cuando cambies de dispositivo.</p>'+
-      '<div class="v5-grid"><button class="v5-btn" onclick="v5Backup()">⬇️ Crear respaldo JSON</button>'+
-      '<button class="v5-btn" onclick="document.getElementById(\'v5-restore-file\').click()">⬆️ Restaurar respaldo</button>'+
-      '<button class="v5-btn" onclick="v5ExportExcel()">📄 Exportar para Excel</button></div>'+
-      '<input id="v5-restore-file" type="file" accept=".json,application/json" style="display:none" onchange="v5Restore(this.files[0])">';
-    document.body.appendChild(panel);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addPanel);else addPanel();
+  // Excel-compatible export.
+  document.getElementById('v5Excel')?.addEventListener('click',()=>{
+    const db=readDB(), name=id=>(db.vehiculos||[]).find(v=>v.id===id)?.nombre||'';
+    const heads=['Vehículo','Fecha','Km última recarga','Km actual','Distancia','Litros','Km/L','Precio/L','Costo','Costo/km','Gasolinera','Notas'];
+    const esc=v=>String(v??'').replace(/"/g,'""');
+    const rows=(db.recargas||[]).map(r=>[name(r.vehiculo),r.fecha,r.kmAnterior,r.kmActual,r.distancia,r.litros,r.rendimiento,r.precio??'',r.costo??'',r.costoKm??'',r.estacion??'',r.notas??'']);
+    const csv='\ufeff'+[heads,...rows].map(row=>row.map(v=>'"'+esc(v)+'"').join(',')).join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='Control_Gasolina_Excel.csv';a.click();
+  });
 
-  // Auto-update: unregister old workers once, then reload when a new controller takes over.
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.addEventListener('controllerchange',function(){
-      if(!sessionStorage.getItem('v5-reloaded')){sessionStorage.setItem('v5-reloaded','1');location.reload();}
-    });
-    window.addEventListener('load',()=>navigator.serviceWorker.getRegistration().then(r=>{if(r)r.update();}));
+  document.getElementById('v5Actualizar')?.addEventListener('click',async()=>{
+    if('serviceWorker' in navigator){
+      const r=await navigator.serviceWorker.getRegistration();
+      if(r){await r.update();alert('✓ Se solicitó una actualización. Si hay una nueva versión, se cargará al volver a abrir la aplicación.');}
+      else alert('El navegador todavía no tiene registrado el service worker. Abre la aplicación desde HTTPS.');
+    }else alert('Este navegador no soporta actualización PWA.');
+  });
+
+  // Robust reports module.
+  function renderReportV5(){
+    try{
+      const d=readDB();
+      const period=document.getElementById('v5Periodo').value;
+      const year=Number(document.getElementById('v5Anio').value)||new Date().getFullYear();
+      const month=Number(document.getElementById('v5Mes').value)||new Date().getMonth()+1;
+      const all=Array.isArray(d.recargas)?d.recargas:[];
+      const rec=all.filter(r=>{
+        if(r.vehiculo!==d.activo)return false;
+        const parts=String(r.fecha||'').split('-');
+        const y=Number(parts[0]), m=Number(parts[1]);
+        return period==='year' ? y===year : (y===year && m===month);
+      });
+      const dist=rec.reduce((s,r)=>s+Number(r.distancia||0),0);
+      const lit=rec.reduce((s,r)=>s+Number(r.litros||0),0);
+      const cost=rec.reduce((s,r)=>s+(r.costo==null?0:Number(r.costo)),0);
+      const rendimiento=lit?dist/lit:0;
+      const k=document.getElementById('v5ReporteKpis');
+      const t=document.getElementById('v5ReporteTabla');
+      const msg=document.getElementById('v5ReporteMensaje');
+      k.innerHTML=
+        '<div class="metric"><div class="small">Recargas</div><div class="big">'+rec.length+'</div></div>'+
+        '<div class="metric"><div class="small">Km recorridos</div><div class="big">'+fmtN(dist,0)+'</div></div>'+
+        '<div class="metric"><div class="small">Litros</div><div class="big">'+fmtN(lit)+'</div></div>'+
+        '<div class="metric"><div class="small">Rendimiento</div><div class="big">'+fmtN(rendimiento)+' km/L</div></div>'+
+        '<div class="metric"><div class="small">Gasto</div><div class="big">$'+fmtN(cost)+'</div></div>';
+      const title=period==='year'?'Año '+year:document.getElementById('v5Mes').options[month-1].text+' '+year;
+      msg.textContent='Reporte: '+title+' • '+rec.length+' recarga(s).';
+      const rows=rec.slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))).map(r=>
+        '<tr><td>'+String(r.fecha||'')+'</td><td>'+fmtN(r.distancia,0)+'</td><td>'+fmtN(r.litros)+'</td><td>'+fmtN(r.rendimiento)+'</td><td>'+ (r.costo==null?'—':'$'+fmtN(r.costo)) +'</td><td>'+String(r.estacion||'Sin estación')+'</td></tr>'
+      ).join('');
+      t.innerHTML='<table class="v5-table"><thead><tr><th>Fecha</th><th>Km</th><th>Litros</th><th>Km/L</th><th>Costo</th><th>Gasolinera</th></tr></thead><tbody>'+
+        (rows||'<tr><td colspan="6">No hay recargas en el periodo seleccionado.</td></tr>')+'</tbody></table>';
+    }catch(e){
+      document.getElementById('v5ReporteMensaje').textContent='No se pudo generar el reporte: '+e.message;
+      console.error(e);
+    }
   }
+  const nowV5=new Date();
+  document.getElementById('v5Anio').value=nowV5.getFullYear();
+  document.getElementById('v5Mes').value=nowV5.getMonth()+1;
+  document.getElementById('v5GenerarReporte').addEventListener('click',renderReportV5);
+  document.getElementById('v5Periodo').addEventListener('change',renderReportV5);
+  document.getElementById('v5Anio').addEventListener('change',renderReportV5);
+  document.getElementById('v5Mes').addEventListener('change',renderReportV5);
+  document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>{
+    if(b.dataset.view==='reportes')setTimeout(renderReportV5,30);
+  }));
 })();
 </script>
 
